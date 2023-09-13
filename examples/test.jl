@@ -1,13 +1,20 @@
+using Pkg
+Pkg.activate(".")
+
 using Distributions 
 import BNPJointModel
 
-alpha = 1
-N = 50 
-
 dists = Dict()
-dists["theta_s"] = Gamma(10,1)
-dists["phi_s"] = Gamma(10,1)
-dists["theta_r"] = Gamma(10,1)
-dists["phi_r"] = Gamma(10,1)
+dists["alpha"] = 5.0
+dists["mu_s"] = 2.0 
+dists["sigma_s"] = 0.1 
+dists["a_s"] = 5.0
+dists["b_s"] = 1.0
+dists["mu_r"] = 2.0 
+dists["sigma_r"] = 0.1 
+dists["a_r"] = 5.0
+dists["b_r"] = 1.0
 
-res = BNPJointModel.dp_generator(alpha, dists, N)
+res = BNPJointModel.prior_generator(dists, 20)
+
+BNPJointModel.data_visualizer(res) 

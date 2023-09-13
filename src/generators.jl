@@ -36,10 +36,10 @@ function dp_generator(alpha::Real, baseline_dists::Dict, N::Int64)
    end
    logp[N] = sum(log.(1 .- V[1:(N-1)]))
    weights = exp.(logp)
-   θₛ = rand(baseline_dists["theta_s"], N)
-   ϕₛ = rand(baseline_dists["phi_s"], N)
-   θᵣ = rand(baseline_dists["theta_r"], N)
-   ϕᵣ = rand(baseline_dists["phi_r"], N)
+   θₛ = exp.(rand(baseline_dists["log_theta_s"], N))
+   ϕₛ = sqrt.(rand(baseline_dists["phi2_s"], N))
+   θᵣ = rand(baseline_dists["log_theta_r"], N)
+   ϕᵣ = rand(baseline_dists["phi2_r"], N)
 
    return dp(weights, θₛ, ϕₛ, θᵣ, ϕᵣ)
 end 
@@ -47,28 +47,51 @@ end
 function prior_generator(hyperparams, n::Int64)
 
    α = hyperparams["alpha"]
-   G = dp()
-   a_s = hyperparams["theta_s"]
-   b_s = hyperparams["phi_s"]
-   theta_r = hyperparams["theta_r"]
-   phi_r = hyperparams["phi_r"]
+   μₛ = hyperparams["mu_s"]
+   σₛ = hyperparams["sigma_s"]
+   aₛ = hyperparams["a_s"]
+   bₛ = hyperparams["b_s"]
+   μᵣ = hyperparams["mu_r"]
+   σᵣ = hyperparams["sigma_r"]
+   aᵣ = hyperparams["a_r"]
+   bᵣ = hyperparams["b_r"]
 
-   survivals = rand(LogLogistic(theta_s, phi_s), n)
+   base_dists = Dict() 
+   base_dists["log_theta_s"] = Normal(μₛ,σₛ)
+   base_dists["phi2_s"] = Gamma(aₛ, bₛ)
+   base_dists["log_theta_r"] = Normal(μᵣ,σᵣ)
+   base_dists["phi2_r"] = Gamma(aᵣ, bᵣ)
+
+   G = dp_generator(α, base_dists, 40)
+
+   surv_params = tuple.(G.θₛ, G.ϕₛ)
+   survival_dist = MixtureModel(LogLogistic, surv_params, G.weights)
+
+   recur_params = tuple.(G.θᵣ, G.ϕᵣ)
+   recur_dist = MixtureModel(LogLogistic, recur_params, G.weights)
+
+   survivals = rand(survival_dist, n)
    gap_times = []
    arrivival_times = []
    for i in range(1,n)
       tmp_gap = [] 
-      tmp_arrival = []
-      while isempty(tmp_gap) || tmp_arrival[end] < survivals[i]
-         gap = rand(LogLogistic(theta_r, phi_r), 1)[1]
+      tmp_arrival = [0.0]
+      while true # tmp_arrival[end] < survivals[i]
+         gap = rand(recur_dist, 1)[1]
+         if tmp_arrival[end] + gap > survivals[i]
+            break
+         end
+
          push!(tmp_gap, gap)
-         push!(tmp_arrival, tmp_arrival[end]+tmp_gap[end])
+         push!(tmp_arrival, tmp_arrival[end]+gap)
       end
       push!(gap_times, tmp_gap)
-      push!(arrivival_times, tmp_arrival)
+      push!(arrivival_times, tmp_arrival[2:end])
    end
 
-   return Dict("gaps_times" <= gap_times, 
-               "arrivival_times" <= arrivival_times,
-               "survival_times" <= survivals)
+   res = Dict("gap_times" => gap_times, 
+              "arrivival_times" => arrivival_times,
+              "survival_times" => survivals)
+
+   return res
 end

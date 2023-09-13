@@ -2,6 +2,6 @@ module BNPJointModel
 
 import Random
 include("generators.jl")
-include("~/Packages/BNPSurvReg/code/loglogistic.jl")
-
+include("loglogistic.jl")
+include("visualizer.jl")
 end # module
