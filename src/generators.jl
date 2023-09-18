@@ -38,13 +38,21 @@ function dp_generator(alpha::Real, baseline_dists::Dict, N::Int64)
    weights = exp.(logp)
    θₛ = exp.(rand(baseline_dists["log_theta_s"], N))
    ϕₛ = sqrt.(rand(baseline_dists["phi2_s"], N))
-   θᵣ = rand(baseline_dists["log_theta_r"], N)
-   ϕᵣ = rand(baseline_dists["phi2_r"], N)
+   θᵣ = exp.(rand(baseline_dists["log_theta_r"], N))
+   ϕᵣ = sqrt.(rand(baseline_dists["phi2_r"], N))
 
    return dp(weights, θₛ, ϕₛ, θᵣ, ϕᵣ)
 end 
 
 function prior_generator(hyperparams, n::Int64)
+   """
+   This function generates recurrent and survival data jointly
+   from the model. 
+
+   Args:
+      hyperparams: dictionary of hyperparameters
+      n: number of observations to generate
+   """
 
    α = hyperparams["alpha"]
    μₛ = hyperparams["mu_s"]
@@ -57,9 +65,9 @@ function prior_generator(hyperparams, n::Int64)
    bᵣ = hyperparams["b_r"]
 
    base_dists = Dict() 
-   base_dists["log_theta_s"] = Normal(μₛ,σₛ)
+   base_dists["log_theta_s"] = Normal(μₛ, σₛ)
    base_dists["phi2_s"] = Gamma(aₛ, bₛ)
-   base_dists["log_theta_r"] = Normal(μᵣ,σᵣ)
+   base_dists["log_theta_r"] = Normal(μᵣ, σᵣ)
    base_dists["phi2_r"] = Gamma(aᵣ, bᵣ)
 
    G = dp_generator(α, base_dists, 40)
@@ -73,10 +81,11 @@ function prior_generator(hyperparams, n::Int64)
    survivals = rand(survival_dist, n)
    gap_times = []
    arrivival_times = []
+   counts = zeros(Int64, n)
    for i in range(1,n)
       tmp_gap = [] 
       tmp_arrival = [0.0]
-      while true # tmp_arrival[end] < survivals[i]
+      while true 
          gap = rand(recur_dist, 1)[1]
          if tmp_arrival[end] + gap > survivals[i]
             break
@@ -85,13 +94,16 @@ function prior_generator(hyperparams, n::Int64)
          push!(tmp_gap, gap)
          push!(tmp_arrival, tmp_arrival[end]+gap)
       end
+      counts[i] = length(tmp_gap)
       push!(gap_times, tmp_gap)
       push!(arrivival_times, tmp_arrival[2:end])
    end
 
-   res = Dict("gap_times" => gap_times, 
+   res = Dict("counts" => counts,
+              "gap_times" => gap_times, 
               "arrivival_times" => arrivival_times,
-              "survival_times" => survivals)
+              "survival_times" => survivals,
+              "dp" => G)
 
    return res
 end
