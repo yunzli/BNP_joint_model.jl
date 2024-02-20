@@ -37,18 +37,16 @@ end
 function update_mu_beta(cur, hyper)
 
     s_beta = hyper["s_beta"]
-    S_beta_inv = hyper["S_beta_inv"]
-    Sigma_beta_inv = hyper["Sigma_beta_inv"] 
+    S_beta = hyper["S_beta"]
 
-    beta = cur["beta"]
     k = cur["k"]
+    beta = cur["beta"]
+    sigma2_beta = hyper["sigma2_beta"]
 
-    S_beta_inv_new = S_beta_inv + k*Sigma_beta_inv
-    S_beta_new = svd2inv(S_beta_inv_new) 
+    S_beta_new = 1 / (1/S_beta + k/sigma2_beta)
+    s_beta_new = S_beta_new * (s_beta/S_beta + sum(beta)/sigma2_beta)
 
-    s_beta_new = S_beta_new * (S_beta_inv * s_beta + Sigma_beta_inv * sum(beta, dims=1)[1,:])
+    mu_beta = rand(Normal(s_beta_new, sqrt(S_beta_new)), 1)[1]
 
-    mu_beta_new = rand(MvNormal(s_beta_new, S_beta_new), 1)
-
-    return vec(mu_beta_new)
+    return mu_beta
 end

@@ -22,6 +22,8 @@ function update_gap_pg_lantent(dat, cur)
         if h <= N
             i, j = h2ij(h, Nvec)
             b = eta[tUh] * (log(gap[i][j]) + log(xi[i]) - log(lambda[tUh]))
+        
+            # println(h, " ", i, " ", a, " ", b, " ", survival[i], " ", gap[i])
             varsigma[h] = rand(PolyaGamma(a, b), 1)[1]
         else
             i = h - N 
@@ -31,6 +33,7 @@ function update_gap_pg_lantent(dat, cur)
                 b = eta[tUh] * (log(survival[i]-sum(gap[i])) + log(xi[i]) - log(lambda[tUh]))
             end
         
+            # println(h, " ", i, " ", a, " ", b, " ", survival[i], " ", gap[i])
             varsigma[h] = rand(PolyaGamma(a, b), 1)[1]
         end 
     end

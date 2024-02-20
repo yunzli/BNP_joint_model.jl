@@ -1,89 +1,150 @@
 using PolyaGammaDistribution
 
-function update_gap_pg_lantent(dat, cur) 
+function update_gap_pg_lantent(datC, datT, cur) 
 
-    survival = dat["survival"]
-    gap = dat["gap"]
+    survivalC = datC["survival"]
+    gapC = datC["gap"]
+    NvecC = datC["Nvec"]
+    NC = datC["N"]
+    nC = datC["n"]
+    iotaC = datC["iota"]
+
+    survivalT = datT["survival"]
+    gapT = datT["gap"]
+    NvecT = datT["Nvec"]
+    NT = datT["N"]
+    nT = datT["n"]
+    iotaT = datT["iota"]
+
     xi = cur["xi"]
-    Nvec = dat["Nvec"]
-    N = dat["N"]
-    n = dat["n"]
-    z = dat["z"]
+    xiC = xi[1]
+    xiT = xi[2]
 
-    iota = dat["iota"]
     tU = cur["tU"]
+    tUC = tU[1]
+    tUT = tU[2]
     
     eta, lambda, gamma = cur["eta"], cur["lambda"], cur["gamma"]
 
-    varsigma = zeros(N+n)
+    varsigmaC = zeros(NC+nC)
+    varsigmaT = zeros(NT+nT)
 
-    for h in 1:(N+n)
-        tUh = tU[h]
-        a = 1 + iota[h]
-        if h <= N
-            i, j = h2ij(h, Nvec)
-            b = eta[tUh] * (log(gap[i][j]) - gamma[tUh,:]'*z[i,:] + log(xi[i]) - log(lambda[tUh]))
-            varsigma[h] = rand(PolyaGamma(a, b), 1)[1]
+    for h in 1:(NC+nC)
+        tUh = tUC[h]
+        a = 1 + iotaC[h]
+        if h <= NC
+            i, j = h2ij(h, NvecC)
+            b = eta[tUh] * (log(gapC[i][j]) + log(xiC[i]) - log(lambda[tUh]))
+            varsigmaC[h] = rand(PolyaGamma(a, b), 1)[1]
         else
-            i = h - N 
-            if Nvec[i] == 0
-                b = eta[tUh] * (log(survival[i]) - gamma[tUh,:]'*z[i,:] + log(xi[i]) - log(lambda[tUh]))
+            i = h - NC
+            if NvecC[i] == 0
+                b = eta[tUh] * (log(survivalC[i]) + log(xiC[i]) - log(lambda[tUh]))
             else
-                b = eta[tUh] * (log(survival[i]-sum(gap[i])) - gamma[tUh,:]'*z[i,:] + log(xi[i]) - log(lambda[tUh]))
+                b = eta[tUh] * (log(survivalC[i] - sum(gapC[i])) + log(xiC[i]) - log(lambda[tUh]))
             end
         
-            varsigma[h] = rand(PolyaGamma(a, b), 1)[1]
+            varsigmaC[h] = rand(PolyaGamma(a, b), 1)[1]
         end 
     end
 
+    for h in 1:(NT+nT)
+        tUh = tUT[h]
+        a = 1 + iotaT[h]
+        if h <= NT
+            i, j = h2ij(h, NvecT)
+            b = eta[tUh] * (log(gapT[i][j]) - gamma[tUh] + log(xiT[i]) - log(lambda[tUh]))
+            varsigmaT[h] = rand(PolyaGamma(a, b), 1)[1]
+        else
+            i = h - NT
+            if NvecT[i] == 0
+                b = eta[tUh] * (log(survivalT[i]) - gamma[tUh] + log(xiT[i]) - log(lambda[tUh]))
+            else
+                b = eta[tUh] * (log(survivalT[i]-sum(gapT[i])) - gamma[tUh] + log(xiT[i]) - log(lambda[tUh]))
+            end
+        
+            varsigmaT[h] = rand(PolyaGamma(a, b), 1)[1]
+        end 
+    end
+
+    varsigma = [varsigmaC, varsigmaT]
     return varsigma
 end
 
-function update_lambda(dat, cur, hyper)
+function update_lambda(datC, datT, cur, hyper)
 
     tU = cur["tU"]
+    tUC = tU[1]
+    tUT = tU[2]
+
     g = cur["g"]
 
     varsigma = cur["varsigma"]
+    varsigmaC = varsigma[1]
+    varsigmaT = varsigma[2]
+
     eta = cur["eta"]
     gamma = cur["gamma"]
+
     xi = cur["xi"]
+    xiC = xi[1]
+    xiT = xi[2]
     
-    survival = dat["survival"]
-    N = dat["N"]
-    z = dat["z"]
-    q = dat["q"]
-    gap = dat["gap"]
-    iota = dat["iota"]
-    Nvec = dat["Nvec"]
+    survivalC = datC["survival"]
+    NC = datC["N"]
+    gapC = datC["gap"]
+    iotaC = datC["iota"]
+    NvecC = datC["Nvec"]
+    
+    survivalT = datT["survival"]
+    NT = datT["N"]
+    gapT = datT["gap"]
+    iotaT = datT["iota"]
+    NvecT = datT["Nvec"]
 
     sigma2_lambda = hyper["sigma2_lambda"]
     mu_lambda = cur["mu_lambda"]
 
 	lambda_new = zeros(g)
     for l in 1:g 
-        ind = findall(tU .== l)
+        indC = findall(tUC .== l)
+        indT = findall(tUT .== l)
 
-        sigma2_lambda_new_inv = 1/sigma2_lambda + eta[l]^2 * sum(varsigma[ind])
+        sigma2_lambda_new_inv = 1/sigma2_lambda + eta[l]^2 * (sum(varsigmaC[indC]) + sum(varsigmaT[indT]))
         sigma2_lambda_new = 1 / sigma2_lambda_new_inv 
 
         tmp1 = mu_lambda / sigma2_lambda
         tmptmp2 = 0
-        for h in ind 
-            if h <= N 
-                i,j = h2ij(h, Nvec)
-                tmptmp2 += varsigma[h] * (log(gap[i][j]) + log(xi[i]) - gamma[l,:]'*z[i,:])
+        for h in indC
+            if h <= NC 
+                i,j = h2ij(h, NvecC)
+                tmptmp2 += varsigmaC[h] * (log(gapC[i][j]) + log(xiC[i]))
             else
-                i = h - N
-                if Nvec[i] == 0
-                    tmptmp2 += varsigma[h] * (log(survival[i]) + log(xi[i]) - gamma[l,:]'*z[i,:])
+                i = h - NC
+                if NvecC[i] == 0
+                    tmptmp2 += varsigmaC[h] * (log(survivalC[i]) + log(xiC[i]))
                 else
-                    tmptmp2 += varsigma[h] * (log(survival[i]-sum(gap[i])) + log(xi[i]) - gamma[l,:]'*z[i,:])
+                    tmptmp2 += varsigmaC[h] * (log(survivalC[i]-sum(gapC[i])) + log(xiC[i]))
                 end
             end
         end
+        
+        for h in indT
+            if h <= NT 
+                i,j = h2ij(h, NvecT)
+                tmptmp2 += varsigmaT[h] * (log(gapT[i][j]) + log(xiT[i]) - gamma[l])
+            else
+                i = h - NT
+                if NvecT[i] == 0
+                    tmptmp2 += varsigmaT[h] * (log(survivalT[i]) + log(xiT[i]) - gamma[l])
+                else
+                    tmptmp2 += varsigmaT[h] * (log(survivalT[i]-sum(gapT[i])) + log(xiT[i]) - gamma[l])
+                end
+            end
+        end
+
         tmp2 = eta[l]^2 * tmptmp2
-        tmp3 = 0.5 * eta[l] * sum(1 .- iota[ind])
+        tmp3 = 0.5 * eta[l] * (sum(1 .- iotaC[indC]) + sum(1 .- iotaT[indT]))
         mu_lambda_new = sigma2_lambda_new * (tmp1 + tmp2 + tmp3) 
         lambda_new[l] = exp(rand(Normal(mu_lambda_new, sqrt(sigma2_lambda_new)), 1)[1])
 
@@ -92,12 +153,19 @@ function update_lambda(dat, cur, hyper)
     return lambda_new 
 end
 
-function MH_eta_sampler(eta2, iota, c, a_eta, b_eta)
+function MH_eta_sampler(eta2, iotaC, iotaT, cC, cT, a_eta, b_eta)
 
 	eta2prop = exp(log(eta2) + rand(Normal(0, 1),1)[1])
 
-	logcur = logpdf(Gamma(a_eta,b_eta), eta2) + 0.5 * sum((iota .- 1) .* c) * sqrt(eta2) + log(eta2) 
-	logpro = logpdf(Gamma(a_eta,b_eta), eta2prop) + 0.5 * sum((iota .- 1) .* c) * sqrt(eta2prop) + log(eta2prop) 
+    tmp = 0.0
+    if length(iotaC) > 0 
+        tmp += sum((iotaC .- 1) .* cC)
+    end
+    if length(iotaT) > 0
+        tmp += sum((iotaT .- 1) .* cT)
+    end
+	logcur = logpdf(Gamma(a_eta,b_eta), eta2) + 0.5 * tmp * sqrt(eta2) + log(eta2) 
+	logpro = logpdf(Gamma(a_eta,b_eta), eta2prop) + 0.5 * tmp * sqrt(eta2prop) + log(eta2prop) 
 
 	if log(rand(Uniform(0,1),1)[1]) < (logpro - logcur)
 		return eta2prop
@@ -106,57 +174,98 @@ function MH_eta_sampler(eta2, iota, c, a_eta, b_eta)
 	end 
 end 
 
-function update_eta(dat, cur, hyper)
+function update_eta(datC, datT, cur, hyper)
 
-	iota = dat["iota"] 
-    gap = dat["gap"]
-    Nvec = dat["Nvec"]
-    survival = dat["survival"]
-    N = dat["N"]
+	iotaC = datC["iota"] 
+    gapC = datC["gap"]
+    NvecC = datC["Nvec"]
+    survivalC = datC["survival"]
+    NC = datC["N"]
+
+	iotaT = datT["iota"] 
+    gapT = datT["gap"]
+    NvecT = datT["Nvec"]
+    survivalT = datT["survival"]
+    NT = datT["N"]
 
 	a_eta = hyper["a_eta"]
 	b_eta = cur["b_eta"]
 	varsigma = cur["varsigma"]
+    varsigmaC = varsigma[1]
+    varsigmaT = varsigma[2]
+
     xi = cur["xi"]
+    xiC = xi[1]
+    xiT = xi[2]
 
     g = cur["g"]
 	lambda = cur["lambda"]
+    gamma = cur["gamma"]
 	eta = cur["eta"]
 	tU = cur["tU"]
+    tUC = tU[1]
+    tUT = tU[2]
 
 	eta_new = zeros(g)
 	
 	for l in 1:g
 
-        ind = findall(tU .== l)
+        indC = findall(tUC .== l)
+        indT = findall(tUT .== l)
 
-        a_eta_new = sum(iota[ind])/2 + a_eta 
+        a_eta_new = (sum(iotaC[indC]) + sum(iotaT[indT]))/2 + a_eta 
 
-        c = [] 
-        for h in ind 
+        cC = [] 
+        cT = [] 
+        for h in indC
             tmp = 0.0
-            if h <= N
-                i,j = h2ij(h, Nvec) 
-                tmp = log(gap[i][j]) + log(xi[i]) - log(lambda[l])
+            if h <= NC
+                i,j = h2ij(h, NvecC) 
+                tmp = log(gapC[i][j]) + log(xiC[i]) - log(lambda[l])
             else
-                i = h - N 
-                if Nvec[i] == 0
-                    tmp = log(survival[i]) + log(xi[i]) - log(lambda[l])
+                i = h - NC
+                if NvecC[i] == 0
+                    tmp = log(survivalC[i]) + log(xiC[i]) - log(lambda[l])
                 else
-                    tmp = log(survival[i]-sum(gap[i])) + log(xi[i]) - log(lambda[l])
+                    tmp = log(survivalC[i]-sum(gapC[i])) + log(xiC[i]) - log(lambda[l])
                 end
             end
-            push!(c, tmp)
+            push!(cC, tmp)
+        end 
+
+        for h in indT
+            tmp = 0.0
+            if h <= NT
+                i,j = h2ij(h, NvecT) 
+                tmp = log(gapT[i][j]) - gamma[l] + log(xiT[i]) - log(lambda[l])
+            else
+                i = h - NT
+                if NvecT[i] == 0
+                    tmp = log(survivalT[i]) - gamma[l] + log(xiT[i]) - log(lambda[l])
+                else
+                    tmp = log(survivalT[i]-sum(gapT[i])) - gamma[l] + log(xiT[i]) - log(lambda[l])
+                end
+            end
+            push!(cT, tmp)
         end 
         # c = log.(gap[ind]) .+ log(epsilon[ind]) .- log(theta[l]) 
 
-        b_eta_new = 1 / (1 / b_eta + 0.5 * sum(varsigma[ind] .* (c .^ 2)))
+        # println(length(indC), " ", length(indT))
+        tmp = 0.0 
+        if length(indC) > 0 
+            tmp += sum(varsigmaC[indC] .* (cC .^ 2))
+        end 
+        if length(indT) > 0
+            tmp += sum(varsigmaT[indT] .* (cT .^ 2))
+        end
+        
+        # b_eta_new = 1 / (1 / b_eta + 0.5 * (sum(varsigmaC[indC] .* (cC .^ 2)) + sum(varsigmaT[indT] .* (cT .^ 2))))
+        b_eta_new = 1 / (1 / b_eta + 0.5 * tmp)
 
-
-        if sum(iota[ind]) == length(ind) 
+        if (sum(iotaC[indC]) == length(indC)) & (sum(iotaT[indT]) == length(indT))
             new = rand(Gamma(a_eta_new, b_eta_new), 1)[1]
         else
-            new = MH_eta_sampler(eta[l]^2, iota[ind], c, a_eta_new, b_eta_new)
+            new = MH_eta_sampler(eta[l]^2, iotaC[indC], iotaT[indT], cC, cT, a_eta_new, b_eta_new)
         end
 
 		eta_new[l] = sqrt(new)
@@ -165,68 +274,71 @@ function update_eta(dat, cur, hyper)
 	return eta_new 
 end 
 
-function update_gamma(dat, cur, hyper)
-    iota = dat["iota"]
-    survival = dat["survival"]
-    gap = dat["gap"]
-    N = dat["N"]
-    n = dat["n"]
-    Nvec = dat["Nvec"]
-    z = dat["z"]
-    q = dat["q"]
 
-    Sigma_gamma_inv = hyper["Sigma_gamma_inv"]
+function update_gamma(datC, datT, cur, hyper)
+    
+    iotaC = datC["iota"]
+    survivalC = datC["survival"]
+    gapC = datC["gap"]
+    NC = datC["N"]
+    nC = datC["n"]
+    NvecC = datC["Nvec"]
+    
+    iotaT = datT["iota"]
+    survivalT = datT["survival"]
+    gapT = datT["gap"]
+    NT = datT["N"]
+    nT = datT["n"]
+    NvecT = datT["Nvec"]
+
+    sigma2_gamma = hyper["sigma2_gamma"]
     mu_gamma = cur["mu_gamma"]
-    muSigma = Sigma_gamma_inv * mu_gamma 
 
     tU = cur["tU"]
+    tUC = tU[1] 
+    tUT = tU[2] 
+
     varsigma = cur["varsigma"]
+    varsigmaC = varsigma[1]
+    varsigmaT = varsigma[2]
+
     xi = cur["xi"]
+    xiC = xi[1]
+    xiT = xi[2]
 
     g = cur["g"]
     lambda = cur["lambda"]
     eta = cur["eta"]
 
-    gamma_new = zeros(g, q)
+    gamma_new = zeros(g)
 
     for l in 1:g 
-        ind = findall(tU .== l)
+        indT = findall(tUT .== l)
 
-        vzz = zeros(q, q)
-        tmp1 = zeros(q)
-        tmp2 = zeros(q)
-        for h in ind 
-            if h <= N 
-                i,j = h2ij(h, Nvec)
-                tau_i = gap[i][j]
+        sigma2_gamma_new_inv = 1 / sigma2_gamma + eta[l]^2 * sum(varsigmaT[indT])
+        sigma2_gamma_new = 1/ sigma2_gamma_new_inv
+
+        tmp1 = 0.0
+        tmp2 = 0.0
+        for h in indT 
+            if h <= NT 
+                i,j = h2ij(h, NvecT)
+                tau_i = gapT[i][j]
             else
-                i = h - N 
-                # Sigma_gamma_inv_new += eta[l]^2 * varsigma[h] * z[i,:] * z[i,:]' 
-                if Nvec[i] == 0
-                    tau_i = survival[i]
-                    # tmp1 += eta[l]^2 * varsigma[h] * ( log(survival[i]) + log(xi[i]) - log(lambda[l]) )  * z[i,:]
-                    # tmp2 += 0.5 * eta[l] * (1 - iota[h]) * z[i,:]
+                i = h - NT 
+                if NvecT[i] == 0
+                    tau_i = survivalT[i]
                 else
-                    tau_i = survival[i] - sum(gap[i])
-                    # tmp1 += eta[l]^2 * varsigma[h] * ( log(survival[i] - sum(gap[i])) + log(xi[i]) - log(lambda[l]) )  * z[i,:]
-                    # tmp2 += 0.5 * eta[l] * (1 - iota[h]) * z[i,:]
+                    tau_i = survivalT[i] - sum(gapT[i])
                 end
             end 
-            vzz += varsigma[h] * (z[i,:] * z[i,:]')
-            tmp1 += varsigma[h] * ( log(tau_i) + log(xi[i]) - log(lambda[l]) )  * z[i,:]
-            tmp2 += (1 - iota[h]) * z[i,:]
+            tmp1 += varsigmaT[h] * ( log(tau_i) + log(xiT[i]) - log(lambda[l]) ) 
+            tmp2 += (1 - iotaT[h]) 
         end
-        Sigma_gamma_inv_new = Sigma_gamma_inv + eta[l]^2 * vzz
-        Sigma_gamma_new = svd2inv(Sigma_gamma_inv_new)
-        mu_gamma_new = Sigma_gamma_new * (muSigma + eta[l]^2 * tmp1 + 0.5 * eta[l] * tmp2)
 
-        if !isposdef(Sigma_gamma_new)
-            println(minimum(varsigma))
-            println(eigvals(Sigma_gamma_new))
-            println(Sigma_gamma_new)
-        end
-        # println(Sigma_gamma_new)
-        gamma_new[l,:] = rand(MvNormal(mu_gamma_new, Sigma_gamma_new), 1)
+        mu_gamma_new = sigma2_gamma_new * (mu_gamma/sigma2_gamma + eta[l]^2*tmp1 + 0.5*eta[l]*tmp2)
+
+        gamma_new[l] = rand(Normal(mu_gamma_new, sqrt(sigma2_gamma_new)), 1)[1]
     end 
 
     return gamma_new

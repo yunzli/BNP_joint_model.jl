@@ -37,18 +37,16 @@ end
 function update_mu_gamma(cur, hyper)
 
     s_gamma = hyper["s_gamma"]
-    S_gamma_inv = hyper["S_gamma_inv"]
-    Sigma_gamma_inv = hyper["Sigma_gamma_inv"] 
+    S_gamma = hyper["S_gamma"]
 
-    gamma = cur["gamma"]
     g = cur["g"]
+    gamma = cur["gamma"]
+    sigma2_gamma = hyper["sigma2_gamma"] 
 
-    S_gamma_inv_new = S_gamma_inv + g*Sigma_gamma_inv
-    S_gamma_new = svd2inv(S_gamma_inv_new) 
+    S_gamma_new = 1 / (1/S_gamma + g/sigma2_gamma)
+    s_gamma_new = S_gamma_new * (s_gamma/S_gamma + sum(gamma)/sigma2_gamma)
 
-    s_gamma_new = S_gamma_new * (S_gamma_inv * s_gamma + Sigma_gamma_inv * sum(gamma, dims=1)[1,:])
+    mu_gamma = rand(Normal(s_gamma_new, sqrt(S_gamma_new)), 1)[1]
 
-    mu_gamma_new = rand(MvNormal(s_gamma_new, S_gamma_new), 1)
-
-    return vec(mu_gamma_new)
+    return mu_gamma
 end
