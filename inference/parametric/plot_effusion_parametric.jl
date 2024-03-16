@@ -808,35 +808,35 @@ ggsave(paste0(fig_path, "conditional_probability_4.png"), p_cond_4)
 # """
 
 
-# R"""
-# cond_ori_C_1 = KM_conditional_N0(survivalC, NvecC, nuC, grids1[1])
-# cond_ori_T_1 = KM_conditional_N0(survivalT, NvecT, nuT, grids1[1])
-# png(paste0(fig_path, "KM_cond1.png"), height=480, width=480)
-# plot(cond_ori_C_1, lwd=2, conf.int=FALSE, col="red")
-# lines(cond_ori_T_1, lwd=2, conf.int=FALSE, col="blue")
-# dev.off()
+R"""
+cond_ori_C_1 = KM_conditional_N0(survivalC, NvecC, nuC, grids1[1])
+cond_ori_T_1 = KM_conditional_N0(survivalT, NvecT, nuT, grids1[1])
+png(paste0(fig_path, "KM_cond1.png"), height=480, width=480)
+plot(cond_ori_C_1, lwd=2, conf.int=FALSE, col="red")
+lines(cond_ori_T_1, lwd=2, conf.int=FALSE, col="blue")
+dev.off()
 
-# png(paste0(fig_path, "KM_cond2.png"), height=480, width=480)
-# cond_ori_C_2 = KM_conditional_N0(survivalC, NvecC, nuC, grids2[1])
-# cond_ori_T_2 = KM_conditional_N0(survivalT, NvecT, nuT, grids2[1])
-# plot(cond_ori_C_2, lwd=2, conf.int=FALSE, col="red")
-# lines(cond_ori_T_2, lwd=2, conf.int=FALSE, col="blue")
-# dev.off()
+png(paste0(fig_path, "KM_cond2.png"), height=480, width=480)
+cond_ori_C_2 = KM_conditional_N0(survivalC, NvecC, nuC, grids2[1])
+cond_ori_T_2 = KM_conditional_N0(survivalT, NvecT, nuT, grids2[1])
+plot(cond_ori_C_2, lwd=2, conf.int=FALSE, col="red")
+lines(cond_ori_T_2, lwd=2, conf.int=FALSE, col="blue")
+dev.off()
 
-# png(paste0(fig_path, "KM_cond3.png"), height=480, width=480)
-# cond_ori_C_3 = KM_conditional_N0(survivalC, NvecC, nuC, grids3[1])
-# cond_ori_T_3 = KM_conditional_N0(survivalT, NvecT, nuT, grids3[1])
-# plot(cond_ori_C_3, lwd=2, conf.int=FALSE, col="red")
-# lines(cond_ori_T_3, lwd=2, conf.int=FALSE, col="blue")
-# dev.off()
+png(paste0(fig_path, "KM_cond3.png"), height=480, width=480)
+cond_ori_C_3 = KM_conditional_N0(survivalC, NvecC, nuC, grids3[1])
+cond_ori_T_3 = KM_conditional_N0(survivalT, NvecT, nuT, grids3[1])
+plot(cond_ori_C_3, lwd=2, conf.int=FALSE, col="red")
+lines(cond_ori_T_3, lwd=2, conf.int=FALSE, col="blue")
+dev.off()
 
-# png(paste0(fig_path, "KM_cond4.png"), height=480, width=480)
-# cond_ori_C_4 = KM_conditional_N0(survivalC, NvecC, nuC, grids4[1])
-# cond_ori_T_4 = KM_conditional_N0(survivalT, NvecT, nuT, grids4[1])
-# plot(cond_ori_C_4, lwd=2, conf.int=FALSE, col="red")
-# lines(cond_ori_T_4, lwd=2, conf.int=FALSE, col="blue")
-# dev.off()
-# """
+png(paste0(fig_path, "KM_cond4.png"), height=480, width=480)
+cond_ori_C_4 = KM_conditional_N0(survivalC, NvecC, nuC, grids4[1])
+cond_ori_T_4 = KM_conditional_N0(survivalT, NvecT, nuT, grids4[1])
+plot(cond_ori_C_4, lwd=2, conf.int=FALSE, col="red")
+lines(cond_ori_T_4, lwd=2, conf.int=FALSE, col="blue")
+dev.off()
+"""
 
 
 

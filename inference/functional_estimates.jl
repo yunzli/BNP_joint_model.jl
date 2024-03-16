@@ -1138,40 +1138,6 @@ function predict_blocked_gibbs_cov(
         eta_predT[i] = eta[i,gap_indT]
     end
 
-
-
-    return Dict("thetaC" => theta_predC, "thetaT" => theta_predT,
-                "betaC" => beta_predC, "betaT" => beta_predT,
-                "phiC" => phi_predC, "phiT" => phi_predT,
-                "lambdaC" => lambda_predC, "lambdaT" => lambda_predT,
-                "gammaC" => gamma_predC, "gammaT" => gamma_predT,
-                "etaC" => eta_predC, "etaT" => eta_predT)
-end
-
-
-function prediction_blocked_gibbs_cov(
-    thetaC, 
-    betaC, 
-    phiC, 
-    lambdaC, 
-    gammaC, 
-    etaC, 
-    epsilonC, 
-    xiC,
-    x0,
-    z0,
-    thetaT, 
-    betaT,
-    phiT,
-    lambdaT,
-    gammaT,
-    etaT,
-    epsilonT,
-    xiT,
-    x1,
-    z1
-)
-
     nkeep = size(thetaC)[1]
 
     survival_predC = zeros(nkeep)
@@ -1461,6 +1427,7 @@ end
 function predict_recurrent_blocked_gibbs_cov(lambda, eta, gamma, logomega, xi_list, z0, survival)
 
     arrival = []
+    gap = []
     nkeep = size(logomega)[1]
     N = size(logomega)[2]
     
@@ -1473,17 +1440,19 @@ function predict_recurrent_blocked_gibbs_cov(lambda, eta, gamma, logomega, xi_li
         tmp_gap = zeros(0)
         while true 
             gap_tmp = rand(gap_dist, 1)[1]
-            if tmp_arrival[end] + gap_tmp > survival
-                break 
-            end 
 
             Nvec[i] += 1
             push!(tmp_gap, gap_tmp)
             push!(tmp_arrival, tmp_arrival[end] + gap_tmp)
-        end
 
+            if tmp_arrival[end] + gap_tmp > survival
+                break 
+            end 
+        end
+        
+        push!(gap, tmp_gap)
         push!(arrival, tmp_arrival[2:end])
     end
 
-    return [arrival, Nvec]
+    return [arrival, gap, Nvec]
 end

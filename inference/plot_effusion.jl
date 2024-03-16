@@ -340,10 +340,10 @@ gap_densC = gap_res_posC["d"]
 gap_survC = gap_res_posC["s"]
 gap_hazaC = gap_densC ./ gap_survC
 
-grids1 = range(0.5, 20, length=100)
-grids2 = range(1, 20, length=100)
-grids3 = range(2, 20, length=100)
-grids4 = range(5, 20, length=100)
+grids1 = range(0.5, 13, length=100)
+grids2 = range(1, 13, length=100)
+grids3 = range(2, 13, length=100)
+grids4 = range(5, 13, length=100)
 
 cond_probC_1 = conditional_survival_probability(
     Sigma_e_saveC, 
@@ -989,24 +989,28 @@ xi_posC = posC["xi"][keep_indexC,:]
 Nvec_2surv_predC = zeros(length(survivalC), nkeepC)
 for i in eachindex(survivalC)
     tmp = predict_recurrent(lambda_saveC, eta_saveC, ml_saveC, xi_posC[:,i], survivalC[i])
-    Nvec_2surv_predC[i,:] = length.(tmp)
+    Nvec_2surv_predC[i,:] = tmp[2]
 end
 @rput Nvec_2surv_predC NvecC
 R"""
 NvecC_median = apply(Nvec_2surv_predC, 1, median)
 NvecC_mean = apply(Nvec_2surv_predC, 1, mean)
-hist(log(NvecC_mean+1))
-rug(log(NvecC+1)+rnorm(length(NvecC),0,0.01), col="red")
+NvecC = unlist(NvecC)
+# hist(log(NvecC_mean+1))
+# rug(log(NvecC+1)+rnorm(length(NvecC),0,0.01), col="red")
+plot(NvecC_median ~ NvecC)
 """
 
 xi_posT = posT["xi"][keep_indexT,:]
 Nvec_2surv_predT = zeros(length(survivalT), nkeepT)
 for i in eachindex(survivalT)
     tmp = predict_recurrent(lambda_saveT, eta_saveT, ml_saveT, xi_posT[:,i], survivalT[i])
-    Nvec_2surv_predT[i,:] = length.(tmp)
+    Nvec_2surv_predT[i,:] = tmp[2]
 end
 @rput Nvec_2surv_predT NvecT
 R"""
 NvecT_median = apply(Nvec_2surv_predT, 1, median)
+NvecT_mean = apply(Nvec_2surv_predT, 1, mean)
+NvecT = unlist(NvecT)
 plot(NvecT_median ~ NvecT)
 """

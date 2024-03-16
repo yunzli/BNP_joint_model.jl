@@ -81,8 +81,16 @@ function update_theta(datC, datT, cur, hyper)
             sigma2_theta_new = 1/sigma2_theta_new_inv
 
             tmp1 = mu_theta / sigma2_theta
-            tmp2 = phi[l]^2 * (sum(uC[indC] .* (log.(survivalC[indC]) .- xC[indC,:]*beta[l,:] .+ log.(epsilonC[indC]))) + sum(uT[indT] .* (log.(survivalT[indT]) .- xT[indT,:]*beta[l,:] .+ log.(epsilonT[indT]))))
-            tmp3 = 0.5 * phi[l] * (length(indC) - sum(nuC[indC]) + length(indT) - sum(nuT[indT]))
+            tmp2 = 0.0
+            tmp3 = 0.0
+            if length(indC) > 0
+                tmp2 += phi[l]^2 * (sum(uC[indC] .* (log.(survivalC[indC]) .- xC[indC,:]*beta[l,:] .+ log.(epsilonC[indC]))))
+                tmp3 += 0.5 * phi[l] * (length(indC) - sum(nuC[indC]))
+            end 
+            if length(indT) > 0
+                tmp2 += phi[l]^2 * (sum(uT[indT] .* (log.(survivalT[indT]) .- xT[indT,:]*beta[l,:] .+ log.(epsilonT[indT]))))
+                tmp3 += 0.5 * phi[l] * (length(indT) - sum(nuT[indT]))
+            end
             mu_theta_new = sigma2_theta_new * (tmp1 + tmp2 + tmp3)
             new = exp(rand(Normal(mu_theta_new, sqrt(sigma2_theta_new)), 1)[1])
         end
@@ -95,9 +103,17 @@ end
 function MH_phi_sampler(phi2, nuC, nuT, cC, cT, a_phi, b_phi)
 
 	phi2prop = exp(log(phi2) + rand(Normal(0, 1),1)[1])
+    logcur = logpdf(Gamma(a_phi,b_phi), phi2) + log(phi2) 
+    logpro = logpdf(Gamma(a_phi,b_phi), phi2prop) + log(phi2prop) 
 
-	logcur = logpdf(Gamma(a_phi,b_phi), phi2) + 0.5 * (sum((nuC .- 1) .* cC) + sum((nuT .- 1) .* cT)) * sqrt(phi2) + log(phi2) 
-	logpro = logpdf(Gamma(a_phi,b_phi), phi2prop) + 0.5 * (sum((nuC .- 1) .* cC) + sum((nuT .- 1) .* cT)) * sqrt(phi2prop) + log(phi2prop) 
+    if length(cC) > 0
+        logcur += 0.5 * sum((nuC .- 1) .* cC)  * sqrt(phi2) 
+        logpro += 0.5 * sum((nuC .- 1) .* cC)  * sqrt(phi2prop)
+    end 
+    if length(cT) > 0
+        logcur += 0.5 * sum((nuT .- 1) .* cT)  * sqrt(phi2) 
+        logpro += 0.5 * sum((nuT .- 1) .* cT)  * sqrt(phi2prop)
+    end
 
 	if log(rand(Uniform(0,1),1)[1]) < (logpro - logcur)
 		return phi2prop
@@ -143,14 +159,30 @@ function update_phi(datC, datT, cur, hyper)
         if (length(indC) == 0) & (length(indT) == 0)
             new = rand(Gamma(a_phi, b_phi), 1)[1]
         else
-            a_phi_new = (sum(nuC[indC]) + sum(nuT[indT]))/2 + a_phi
+            a_phi_new = a_phi
+            b_phi_new_inv = 1 / b_phi 
 
-            cC = log.(survivalC[indC]) .+ log.(epsilonC[indC]) .- xC[indC,:]*beta[l,:] .- log(theta[l])
-            cT = log.(survivalT[indT]) .+ log.(epsilonT[indT]) .- xT[indT,:]*beta[l,:] .- log(theta[l])
+            cC = []
+            nuC_sum = 0.0
+            if length(indC) > 0
+                nuC_sum = sum(nuC[indC])
+                a_phi_new += sum(nuC[indC])/2
+                cC = log.(survivalC[indC]) .+ log.(epsilonC[indC]) .- xC[indC,:]*beta[l,:] .- log(theta[l])
+                b_phi_new_inv += 0.5 * sum(uC[indC] .* (cC .^2))
+            end
 
-            b_phi_new = 1 / (1 / b_phi + 0.5 * (sum(uC[indC] .* (cC .^ 2)) + sum(uT[indT] .* (cT .^ 2))))
+            cT = []
+            nuT_sum = 0.0
+            if length(indT) > 0
+                nuT_sum = sum(nuT[indT])
+                a_phi_new += sum(nuT[indT])/2
+                cT = log.(survivalT[indT]) .+ log.(epsilonT[indT]) .- xT[indT,:]*beta[l,:] .- log(theta[l])
+                b_phi_new_inv += 0.5 * sum(uT[indT] .* (cT .^2))
+            end
 
-            if (length(indC) == sum(nuC[indC])) & (length(indT) == sum(nuT[indT]))
+            b_phi_new = 1 / b_phi_new_inv
+            # if (length(indC) == sum(nuC[indC])) & (length(indT) == sum(nuT[indT]))
+            if (length(indC) == nuC_sum) & (length(indT) == nuT_sum)
                 new = rand(Gamma(a_phi_new, b_phi_new), 1)[1]
             else
                 new = MH_phi_sampler(phi[l]^2, nuC[indC], nuT[indT], cC, cT, a_phi_new, b_phi_new)
